@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Weavers VerifyAssembly="false">
+    <ReflectWeaver 
+    References="0Harmony,Assembly-CSharp,BepInEx,System,System.Core,System.Data,System.Drawing,System.IO.Compression.FileSystem,System.Numerics,System.Runtime.Serialization,System.Xml,System.Xml.Linq,UnityEngine,UnityEngine.UI"
+    />
+</Weavers>

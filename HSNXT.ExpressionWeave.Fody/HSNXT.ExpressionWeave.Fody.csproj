@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net47;netstandard2.0</TargetFrameworks>
+    <DebugType>portable</DebugType>
+    <DefineConstants>DEPLOY</DefineConstants>
+    <LangVersion>7.1</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="FodyHelpers" Version="3.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Weavers\Class1.cs">
+      <Link>Class1.cs</Link>
+    </Compile>
+  </ItemGroup>
+</Project>
