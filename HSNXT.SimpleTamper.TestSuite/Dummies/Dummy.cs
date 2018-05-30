@@ -6,7 +6,7 @@ using System;
 #pragma warning disable 169
 namespace ExpressionWeave.Dummies
 {
-    public class DownloadSceneDummy
+    public class Dummy
     {
         private float test1 = 05f;
         private float test2 = 15f;

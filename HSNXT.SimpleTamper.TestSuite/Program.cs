@@ -17,19 +17,19 @@ namespace ExpressionWeave
             Console.WriteLine("Hello World!");
             Console.WriteLine("");
 
-            var inst = new DownloadSceneDummy();
+            var inst = new Dummy();
             
-            var getter = Getters.MemberInstance<DownloadSceneDummy, float>("test1");
+            var getter = Getters.MemberInstance<Dummy, float>("test1");
             Console.WriteLine(getter(inst)); // 5
             
-            var staticGetter = Getters.MemberStatic<DownloadSceneDummy, float>("staticTest1");
+            var staticGetter = Getters.MemberStatic<Dummy, float>("staticTest1");
             Console.WriteLine(staticGetter()); // 45
 
-            var setter = Setters.MemberInstanceClass<DownloadSceneDummy, float>("test1");
+            var setter = Setters.MemberInstanceClass<Dummy, float>("test1");
             setter(inst, 421f);
             Console.WriteLine(getter(inst)); // 421
             
-            var staticSetter = Setters.MemberStatic<DownloadSceneDummy, float>("staticTest1");
+            var staticSetter = Setters.MemberStatic<Dummy, float>("staticTest1");
             staticSetter(422f);
             Console.WriteLine(staticGetter()); // 422
             
@@ -94,22 +94,22 @@ namespace ExpressionWeave
         }
     }
 
-    [TamperClass(typeof(DownloadSceneDummy))]
+    [TamperClass(typeof(Dummy))]
     [SuppressMessage("ReSharper", "UnusedParameter.Global")]
     [SuppressMessage("ReSharper", "UnusedMethodReturnValue.Local")]
     public static class TamperDownloadScene
     {
         // fields
-        public static float test1(DownloadSceneDummy instance) => default;
-        public static float test2(DownloadSceneDummy instance) => default;
+        public static float test1(Dummy instance) => default;
+        public static float test2(Dummy instance) => default;
 
-        public static void test1(DownloadSceneDummy instance, float value) {}
-        public static void test2(DownloadSceneDummy instance, float value) {}
+        public static void test1(Dummy instance, float value) {}
+        public static void test2(Dummy instance, float value) {}
 
         // properties
-        public static float propTest2(DownloadSceneDummy instance) => default;
+        public static float propTest2(Dummy instance) => default;
 
-        public static void propTest2(DownloadSceneDummy instance, float value) {}
+        public static void propTest2(Dummy instance, float value) {}
 
         // static fields
         public static float staticTest1() => default;
@@ -128,9 +128,9 @@ namespace ExpressionWeave
         public static float staticPropTest3 { get; set; }
 
         // methods
-        public static void InstanceMethod(DownloadSceneDummy instance) {}
-        public static void InstanceMethod(DownloadSceneDummy instance, int ex1, int ex2) {}
-        public static float InstanceMethod(DownloadSceneDummy instance, int a1, int a2, int a3, int a4, int a5, int a6,
+        public static void InstanceMethod(Dummy instance) {}
+        public static void InstanceMethod(Dummy instance, int ex1, int ex2) {}
+        public static float InstanceMethod(Dummy instance, int a1, int a2, int a3, int a4, int a5, int a6,
             int a7, int a8, int a9,
             int a10, int a11, int a12, int a13, int a14, int a15)
             => default;
@@ -150,11 +150,11 @@ namespace ExpressionWeave
     
     // do need though to make sure every method signature is unique based on the arguments
 
-    [TamperClass(typeof(DownloadSceneDummy))]
+    [TamperClass(typeof(Dummy))]
     [SuppressMessage("ReSharper", "UnusedParameter.Global")]
     public class TamperDownloadScene2
     {
-        public TamperDownloadScene2(DownloadSceneDummy instance)
+        public TamperDownloadScene2(Dummy instance)
         {
             
         }
