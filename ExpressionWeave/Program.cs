@@ -63,6 +63,13 @@ namespace ExpressionWeave
             TamperDownloadScene.staticPropTest3 = 428f;
             Console.WriteLine(TamperDownloadScene.staticPropTest3); // 428
 
+            TamperDownloadScene.InstanceMethod(inst); // InstanceMethod() called
+            TamperDownloadScene.InstanceMethod(inst, 1000, 2000); // InstanceMethod(1000, 2000) called
+            Console.WriteLine(TamperDownloadScene.InstanceMethod(inst, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)); // 120
+            TamperDownloadScene.StaticMethod(); // StaticMethod() called
+            TamperDownloadScene.StaticMethod(2000, 3000); // StaticMethod(2000, 3000) called
+            Console.WriteLine(TamperDownloadScene.StaticMethod(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)); // 120
+
 //            var scene = new DownloadSceneDummy();
 //            
 //            TamperDownloadScene.Start(scene);
@@ -89,6 +96,7 @@ namespace ExpressionWeave
 
     [TamperClass(typeof(DownloadSceneDummy))]
     [SuppressMessage("ReSharper", "UnusedParameter.Global")]
+    [SuppressMessage("ReSharper", "UnusedMethodReturnValue.Local")]
     public static class TamperDownloadScene
     {
         // fields
@@ -120,10 +128,20 @@ namespace ExpressionWeave
         public static float staticPropTest3 { get; set; }
 
         // methods
-        public static void Start(DownloadSceneDummy instance) {}
+        public static void InstanceMethod(DownloadSceneDummy instance) {}
+        public static void InstanceMethod(DownloadSceneDummy instance, int ex1, int ex2) {}
+        public static float InstanceMethod(DownloadSceneDummy instance, int a1, int a2, int a3, int a4, int a5, int a6,
+            int a7, int a8, int a9,
+            int a10, int a11, int a12, int a13, int a14, int a15)
+            => default;
         
         // static methods
         public static void StaticMethod() {}
+        public static void StaticMethod(int ex1, int ex2) {}
+
+        public static float StaticMethod(int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9,
+            int a10, int a11, int a12, int a13, int a14, int a15)
+            => default;
     }
     
     // dont need to worry about conflicts for 2 reasons

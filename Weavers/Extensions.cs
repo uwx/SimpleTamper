@@ -29,7 +29,7 @@ namespace HSNXT.SimpleTamper
 
         // make a method static
         // taken from the cecil test utils
-        public static GenericInstanceMethod MakeGenericMethod(this MethodReference method, params TypeReference[] args)
+        public static GenericInstanceMethod MakeGeneric(this MethodReference method, params TypeReference[] args)
         {
             if (args.Length == 0 && method is GenericInstanceMethod gen)
                 return gen;
@@ -46,7 +46,7 @@ namespace HSNXT.SimpleTamper
 
         // make the declaring type of a method a generic type, required because Resolve() loses generic information
         // taken from the cecil test utils
-        public static MethodReference MakeHostInstanceGeneric(this MethodReference self,
+        public static MethodReference MakeHostGeneric(this MethodReference self,
             params TypeReference[] arguments)
         {
             var reference = new MethodReference(self.Name, self.ReturnType)
@@ -70,6 +70,12 @@ namespace HSNXT.SimpleTamper
         public static T FindNamed<T>(this IEnumerable<T> collection, string name) where T : MemberReference
             => collection.FirstOrDefault(e => e.Name == name);
 
+        public static MethodDefinition GetMethod(this TypeDefinition type, string name)
+            => type.Methods.FindNamed(name);
+
+        public static MethodDefinition GetMethod(this TypeReference type, string name)
+            => type.Resolve().GetMethod(name);
+        
         // shortcuts for ImportReference
         
         public static TypeReference Import(this Type type, ModuleDefinition moduleDefinition) =>

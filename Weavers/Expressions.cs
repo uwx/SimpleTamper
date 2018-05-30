@@ -13,9 +13,11 @@ namespace HSNXT.SimpleTamper.Expressions
     {
         public static Func<T, TResult> MemberInstance<T, TResult>(string name)
         {
+            var instance = ParameterInstance<T>();
+            
             return Lambda<Func<T, TResult>>(
-                PropertyOrField(Parameter(typeof(T), "instance"), name) // return instance.name
-                , Parameter(typeof(T), "instance") // (instance) => ...
+                PropertyOrField(instance, name) // return instance.name
+                , instance // (instance) => ...
             ).Compile();
         }
 
@@ -59,29 +61,29 @@ namespace HSNXT.SimpleTamper.Expressions
         }
     }
 
-    public static class Callers
+    public static partial class Callers
     {
-        public static Func<T, TArg0, TResult> Instance0<T, TArg0, TResult>(string name)
+        public static Func<T, TResult> Instance0<T, TResult>(string name)
         {
             var instance = ParameterInstance<T>();
             
-            return Lambda<Func<T, TArg0, TResult>>(
+            return Lambda<Func<T, TResult>>(
                 Call(instance, name, null), instance // return instance.name()
             ).Compile(); // (instance) => ...
         }
 
-        public static Func<TArg0, TResult> Static0<T, TArg0, TResult>(string name)
+        public static Func<TResult> Static0<T, TResult>(string name)
         {
-            return Lambda<Func<TArg0, TResult>>(
+            return Lambda<Func<TResult>>(
                 Call(Method<T>(name)) // return T.name()
             ).Compile(); // () => ...
         }
 
-        public static Action<T, TArg0> InstanceVoid0<T, TArg0>(string name)
+        public static Action<T> InstanceVoid0<T>(string name)
         {
             var instance = ParameterInstance<T>();
             
-            return Lambda<Action<T, TArg0>>(
+            return Lambda<Action<T>>(
                 Call(instance, name, null), instance // instance.name()
             ).Compile(); // (instance) => ...
         }
@@ -91,44 +93,6 @@ namespace HSNXT.SimpleTamper.Expressions
             return Lambda<Action>(
                 Call(Method<T>(name)) // T.name()
             ).Compile(); // () => ...
-        }
-        
-        public static Func<T, TArg0, TResult> Instance1<T, TArg0, TResult>(string name)
-        {
-            var instance = ParameterInstance<T>();
-            var arg0 = Parameter(typeof(TArg0), "arg0");
-
-            return Lambda<Func<T, TArg0, TResult>>(
-                Call(instance, name, null, arg0), instance, arg0 // return instance.name(arg0)
-            ).Compile(); // (instance, arg0) => ...
-        }
-
-        public static Func<TArg0, TResult> Static1<T, TArg0, TResult>(string name)
-        {
-            var arg0 = Parameter(typeof(TArg0), "arg0");
-            
-            return Lambda<Func<TArg0, TResult>>(
-                Call(Method<T>(name), arg0), arg0 // return T.name(arg0)
-            ).Compile(); // (arg0) => ...
-        }
-
-        public static Action<T, TArg0> InstanceVoid1<T, TArg0>(string name)
-        {
-            var instance = ParameterInstance<T>();
-            var arg0 = Parameter(typeof(TArg0), "arg0");
-            
-            return Lambda<Action<T, TArg0>>(
-                Call(instance, name, null, arg0), instance, arg0 // instance.name(arg0)
-            ).Compile(); // (instance, arg0) => ...
-        }
-
-        public static Action<TArg0> StaticVoid1<T, TArg0>(string name)
-        {
-            var arg0 = Parameter(typeof(TArg0), "arg0");
-            
-            return Lambda<Action<TArg0>>(
-                Call(Method<T>(name), arg0), arg0 // T.name(arg0)
-            ).Compile(); // (arg0) => ...
         }
     }
     
@@ -159,11 +123,11 @@ namespace HSNXT.SimpleTamper.Expressions
             throw new ArgumentException($"{propertyOrFieldName} NotAMemberOfType {type}");
         }
 
-        internal static MethodInfo Method<T>(string name)
+        internal static MethodInfo Method<T>(string name, params Type[] parameters)
         {
-            var method = typeof(T).GetMethod(name, PropertyStaticPublic);
+            var method = typeof(T).GetMethod(name, PropertyStaticPublic, null, parameters, null);
             if (method == null)
-                method = typeof(T).GetMethod(name, PropertyStaticNonPublic);
+                method = typeof(T).GetMethod(name, PropertyStaticNonPublic, null, parameters, null);
             if (method == null)
                 throw new Exception($"Could not find method {typeof(T)}::{name}");
             return method;

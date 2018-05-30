@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Mono.Cecil;
 using Mono.Cecil.Rocks;
@@ -11,6 +12,8 @@ namespace HSNXT.SimpleTamper
     public partial class SimpleTamper
 #endif
     {
+        private ModuleDefinition Mod => ModuleDefinition;
+        
         private static bool EqualParams(IMethodSignature method, params TypeReference[] args)
         {
             var c = method.Parameters.Count;
@@ -40,6 +43,10 @@ namespace HSNXT.SimpleTamper
                 }
             }
         }
+        
+        private static void AssertParams(IMethodSignature method, IEnumerable<TypeReference> args)
+            => AssertParams(method, args.ToArray());
+
 
         // TODO better way of detecting property methods
         /// <summary>
@@ -76,6 +83,9 @@ namespace HSNXT.SimpleTamper
         /// <returns>The constructed type</returns>
         private GenericInstanceType FindGenericType(Type type, params TypeReference[] genericArguments) 
             => FindMatchingType(type).MakeGenericInstanceType(genericArguments);
+
+        private GenericInstanceType FindGenericType(Type type, IEnumerable<TypeReference> genericArguments)
+            => FindGenericType(type, genericArguments.ToArray());
         
         /// <summary>
         /// Keep this here so Fody will work even if there's no code referencing Cecil
