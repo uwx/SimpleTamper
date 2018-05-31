@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Mono.Cecil;
+using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 
 namespace HSNXT.SimpleTamper
@@ -123,6 +124,17 @@ namespace HSNXT.SimpleTamper
 
         private TypeReference FindMaybeGeneric(Type type, List<TypeReference> args)
             => FindMaybeGeneric(type, args.ToArray());
+
+        /// <summary>
+        /// Removes the first ret opcode from a method definition.
+        /// </summary>
+        /// <param name="method">The method to remove the return call from.</param>
+        private static void RemoveRet(MethodDefinition method)
+        {
+            var inst = method.Body.Instructions;
+            var firstRet = inst.FirstOrDefault(e => e.OpCode == OpCodes.Ret);
+            if (firstRet != null) inst.Remove(firstRet);
+        }
 
         /// <summary>
         /// Keep this here so Fody will work even if there's no code referencing Cecil

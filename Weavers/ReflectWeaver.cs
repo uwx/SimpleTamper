@@ -238,7 +238,10 @@ namespace HSNXT.SimpleTamper
                 StaticConstructor = new MethodDefinition(".cctor", StaticConstructorAttributes, Mod.TypeSystem.Void);
                 Type.Methods.Add(StaticConstructor);
             }
-            // TODO remove existing ret instruction from static constructor if it's already present in the class
+            else
+            {
+                RemoveRet(StaticConstructor);
+            }
             CctorProc = StaticConstructor.Body.GetILProcessor();
 
             foreach (var method in Type.Methods)
@@ -274,8 +277,8 @@ namespace HSNXT.SimpleTamper
                 if (TargetType.Fields.TryFirst(out FieldOrProp, e => e.Name == methodName)
                     || TargetType.Properties.TryFirst(out FieldOrProp, e => e.Name == methodName))
                 {
-                    if (Method.ReturnType.IsByReference) // TODO this is incorrect, it is valid code
-                        throw new Exception("Return by reference is no longer possible as it causes invalid code");
+                    if (Method.ReturnType.IsByReference) // TODO this
+                        throw new Exception("Return by reference is not possible yet");
 
                     if (FieldOrPropIsStatic)
                     {
@@ -323,11 +326,11 @@ namespace HSNXT.SimpleTamper
             InstanceField = new FieldDefinition("_hold_instance", FieldAttributes.Private, TargetType);
             Type.Fields.Add(InstanceField);
             
-            var constructor = Type.GetConstructors().Single(e => EqualParams(e, TargetType));
-            var inst = constructor.Body.Instructions;
-            var firstRet = inst.FirstOrDefault(e => e.OpCode == OpCodes.Ret);
-            if (firstRet != null) inst.Remove(firstRet);
-            
+            var constructor = Type.GetConstructors().SingleOrDefault(e => EqualParams(e, TargetType));
+            if (constructor == null)
+                throw new Exception($"Add a constructor to {Type} that takes a single {TargetType} parameter with an empty body");
+            RemoveRet(constructor);
+
             var cproc = constructor.Body.GetILProcessor();
             cproc.Emit(OpCodes.Ldarg_0);
             cproc.Emit(OpCodes.Ldarg_1);
