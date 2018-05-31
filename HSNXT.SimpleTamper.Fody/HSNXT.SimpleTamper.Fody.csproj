@@ -9,8 +9,23 @@
     <PackageReference Include="FodyHelpers" Version="3.0.3" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\Weavers\Class1.cs">
-      <Link>Class1.cs</Link>
+    <Compile Include="..\Weavers\Expressions.cs">
+      <Link>Expressions.cs</Link>
+    </Compile>
+    <Compile Include="..\Weavers\Extensions.cs">
+      <Link>Extensions.cs</Link>
+    </Compile>
+    <Compile Include="..\Weavers\GenerateMethodCall.cs">
+      <Link>GenerateMethodCall.cs</Link>
+    </Compile>
+    <Compile Include="..\Weavers\Helpers.cs">
+      <Link>Helpers.cs</Link>
+    </Compile>
+    <Compile Include="..\Weavers\ReflectWeaver.cs">
+      <Link>ReflectWeaver.cs</Link>
+    </Compile>
+    <Compile Include="..\Weavers\TamperClassAttribute.cs">
+      <Link>TamperClassAttribute.cs</Link>
     </Compile>
   </ItemGroup>
 </Project>

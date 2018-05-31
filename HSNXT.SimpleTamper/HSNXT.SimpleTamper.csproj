@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFrameworks>net452;netstandard1.0</TargetFrameworks>
     <Authors>uwx</Authors>
-    <Description>Fills dummy classes with expressions pointing to private fields</Description>
+    <Description>Automated non-public member introspection using Fody &amp; Linq Expressions</Description>
     <PackageTags>ILWeaving, Fody, Cecil</PackageTags>
   </PropertyGroup>
   <ItemGroup>
