@@ -10,8 +10,10 @@ namespace ExpressionWeave.Dummies
     {
         private float test1 = 05f;
         private float test2 = 15f;
+        private float test3 = 1005f;
 
         private float propTest2 { get; set; } = 35f;
+        private float propTest3 { get; set; } = 995f;
 
         private static float staticTest1 = 45f;
         private static float staticTest2 = 55f;

@@ -44,10 +44,12 @@ namespace HSNXT.SimpleTamper
             return genericTypeRef;
         }
 
+        public static GenericInstanceMethod MakeGeneric(this MethodReference method, List<TypeReference> args)
+            => MakeGeneric(method, args.ToArray());
+
         // make the declaring type of a method a generic type, required because Resolve() loses generic information
         // taken from the cecil test utils
-        public static MethodReference MakeHostGeneric(this MethodReference self,
-            params TypeReference[] arguments)
+        public static MethodReference MakeHostGeneric(this MethodReference self, params TypeReference[] arguments)
         {
             var reference = new MethodReference(self.Name, self.ReturnType)
             {
@@ -65,6 +67,9 @@ namespace HSNXT.SimpleTamper
 
             return reference;
         }
+
+        public static MethodReference MakeHostGeneric(this MethodReference self, List<TypeReference> arguments)
+            => MakeHostGeneric(self, arguments.ToArray());
 
         // finds a member with a name in member collection (eg fields or methods)
         public static T FindNamed<T>(this IEnumerable<T> collection, string name) where T : MemberReference

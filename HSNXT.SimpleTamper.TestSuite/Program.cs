@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
-using ADV.Commands.Base;
 using ExpressionWeave.Dummies;
-using Shouldly;
 using HSNXT.SimpleTamper;
 using HSNXT.SimpleTamper.Expressions;
 
@@ -33,43 +31,68 @@ namespace ExpressionWeave
             staticSetter(422f);
             Console.WriteLine(staticGetter()); // 422
             
-            Console.WriteLine(TamperDownloadScene.staticTest1()); // 422
+            Console.WriteLine(TamperDummy.staticTest1()); // 422
             
-            TamperDownloadScene.staticTest1(423f);
-            Console.WriteLine(TamperDownloadScene.staticTest1()); // 423
+            TamperDummy.staticTest1(423f);
+            Console.WriteLine(TamperDummy.staticTest1()); // 423
 
-            Console.WriteLine(TamperDownloadScene.test1(inst)); // 421
+            Console.WriteLine(TamperDummy.test1(inst)); // 421
             
-            TamperDownloadScene.test1(inst, 424f);
-            Console.WriteLine(TamperDownloadScene.test1(inst)); // 424
+            TamperDummy.test1(inst, 424f);
+            Console.WriteLine(TamperDummy.test1(inst)); // 424
 
-            Console.WriteLine(TamperDownloadScene.propTest2(inst)); // 35
+            Console.WriteLine(TamperDummy.propTest2(inst)); // 35
 
-            TamperDownloadScene.propTest2(inst, 425f);
-            Console.WriteLine(TamperDownloadScene.propTest2(inst)); // 425
+            TamperDummy.propTest2(inst, 425f);
+            Console.WriteLine(TamperDummy.propTest2(inst)); // 425
 
-            Console.WriteLine(TamperDownloadScene.staticPropTest2()); // 75
+            Console.WriteLine(TamperDummy.staticPropTest2()); // 75
 
-            TamperDownloadScene.staticPropTest2(426f);
-            Console.WriteLine(TamperDownloadScene.staticPropTest2()); // 426
+            TamperDummy.staticPropTest2(426f);
+            Console.WriteLine(TamperDummy.staticPropTest2()); // 426
 
-            Console.WriteLine(TamperDownloadScene.staticTest3); // 85
+            Console.WriteLine(TamperDummy.staticTest3); // 85
             
-            TamperDownloadScene.staticTest3 = 427f;
-            Console.WriteLine(TamperDownloadScene.staticTest3); // 427
+            TamperDummy.staticTest3 = 427f;
+            Console.WriteLine(TamperDummy.staticTest3); // 427
 
-            Console.WriteLine(TamperDownloadScene.staticPropTest3); // 95
+            Console.WriteLine(TamperDummy.staticPropTest3); // 95
 
-            TamperDownloadScene.staticPropTest3 = 428f;
-            Console.WriteLine(TamperDownloadScene.staticPropTest3); // 428
+            TamperDummy.staticPropTest3 = 428f;
+            Console.WriteLine(TamperDummy.staticPropTest3); // 428
 
-            TamperDownloadScene.InstanceMethod(inst); // InstanceMethod() called
-            TamperDownloadScene.InstanceMethod(inst, 1000, 2000); // InstanceMethod(1000, 2000) called
-            Console.WriteLine(TamperDownloadScene.InstanceMethod(inst, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)); // 120
-            TamperDownloadScene.StaticMethod(); // StaticMethod() called
-            TamperDownloadScene.StaticMethod(2000, 3000); // StaticMethod(2000, 3000) called
-            Console.WriteLine(TamperDownloadScene.StaticMethod(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)); // 120
+            TamperDummy.InstanceMethod(inst); // InstanceMethod() called
+            TamperDummy.InstanceMethod(inst, 1000, 2000); // InstanceMethod(1000, 2000) called
+            Console.WriteLine(TamperDummy.InstanceMethod(inst, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)); // 120
+            TamperDummy.StaticMethod(); // StaticMethod() called
+            TamperDummy.StaticMethod(2000, 3000); // StaticMethod(2000, 3000) called
+            Console.WriteLine(TamperDummy.StaticMethod(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)); // 120
 
+            var wrappedInst = new TamperDummyInst(inst);
+            
+            Console.WriteLine(wrappedInst.test1()); // 424
+            
+            wrappedInst.test1(464f);
+            Console.WriteLine(wrappedInst.test1()); // 464
+
+            Console.WriteLine(wrappedInst.test3); // 1005
+            
+            wrappedInst.test3 = 17875f;
+            Console.WriteLine(wrappedInst.test3); // 17875
+
+            Console.WriteLine(wrappedInst.propTest2()); // 425
+
+            wrappedInst.propTest2(505f);
+            Console.WriteLine(wrappedInst.propTest2()); // 505
+
+            Console.WriteLine(wrappedInst.propTest3); // 995
+            wrappedInst.propTest3 = 11111f;
+            Console.WriteLine(wrappedInst.propTest3); // 11111
+
+            wrappedInst.InstanceMethod(); // InstanceMethod() called
+            wrappedInst.InstanceMethod(9000, 8000); // InstanceMethod(9000, 8000) called
+            Console.WriteLine(wrappedInst.InstanceMethod(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 35)); // 140
+            
 //            var scene = new DownloadSceneDummy();
 //            
 //            TamperDownloadScene.Start(scene);
@@ -97,7 +120,7 @@ namespace ExpressionWeave
     [TamperClass(typeof(Dummy))]
     [SuppressMessage("ReSharper", "UnusedParameter.Global")]
     [SuppressMessage("ReSharper", "UnusedMethodReturnValue.Local")]
-    public static class TamperDownloadScene
+    public static class TamperDummy
     {
         // fields
         public static float test1(Dummy instance) => default;
@@ -152,18 +175,37 @@ namespace ExpressionWeave
 
     [TamperClass(typeof(Dummy))]
     [SuppressMessage("ReSharper", "UnusedParameter.Global")]
-    public class TamperDownloadScene2
+    [SuppressMessage("ReSharper", "MemberCanBeMadeStatic.Global")]
+    public class TamperDummyInst
     {
-        public TamperDownloadScene2(Dummy instance)
+        public TamperDummyInst(Dummy instance)
         {
             
         }
-        
+
         // fields
-        public float test1 { get; set; }
-        public float test2 { get; set; }
+        public float test1() => default;
+        public float test2() => default;
+
+        public void test1(float value) {}
+        public void test2(float value) {}
+
+        public float test3 { get; set; }
         
+        // properties
+        public float propTest2() => default;
+
+        public void propTest2(float value) {}
+        
+        public float propTest3 { get; set; }
+
         // methods
-        public void Start() {}
+        public void InstanceMethod() {}
+        public void InstanceMethod(int ex1, int ex2) {}
+        public float InstanceMethod(int a1, int a2, int a3, int a4, int a5, int a6,
+            int a7, int a8, int a9,
+            int a10, int a11, int a12, int a13, int a14, int a15)
+            => default;
+
     }
 }

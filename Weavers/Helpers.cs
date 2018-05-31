@@ -12,8 +12,17 @@ namespace HSNXT.SimpleTamper
     public partial class SimpleTamper
 #endif
     {
+        /// <summary>
+        /// Shortcut for ModuleDefinition to keep import statements concise.
+        /// </summary>
         private ModuleDefinition Mod => ModuleDefinition;
         
+        /// <summary>
+        /// Checks if a method's parameters match an array of types.
+        /// </summary>
+        /// <param name="method">The method to check against</param>
+        /// <param name="args">The parameters to check for</param>
+        /// <returns>True if both parameter sets match, false otherwise</returns>
         private static bool EqualParams(IMethodSignature method, params TypeReference[] args)
         {
             var c = method.Parameters.Count;
@@ -29,6 +38,12 @@ namespace HSNXT.SimpleTamper
             return true;
         }
 
+        /// <summary>
+        /// Checks if a method's parameters match an array of types, throwing an exception if they don't.
+        /// </summary>
+        /// <param name="method">The method to check against</param>
+        /// <param name="args">The parameters to check for</param>
+        /// <exception cref="Exception">If both parameter sets don't match</exception>
         private static void AssertParams(IMethodSignature method, params TypeReference[] args)
         {
             var c = method.Parameters.Count;
@@ -47,6 +62,15 @@ namespace HSNXT.SimpleTamper
         private static void AssertParams(IMethodSignature method, IEnumerable<TypeReference> args)
             => AssertParams(method, args.ToArray());
 
+        /// <summary>
+        /// Gets the signature to be used as the name for the field that holds the Action/Func to call a method.
+        /// This uses the method's parameters to ensure that methods with different names with the same signature
+        /// can both be introspected without ambiguity.
+        /// </summary>
+        /// <param name="method">The method to get the signature of.</param>
+        /// <returns>The method's signature</returns>
+        private static string MakeSignature(MethodReference method) 
+            => $"_call_method_{method.Name}_{string.Join(",", method.Parameters.Select(e => e.ParameterType.Name))}";
 
         // TODO better way of detecting property methods
         /// <summary>
@@ -83,10 +107,23 @@ namespace HSNXT.SimpleTamper
         /// <returns>The constructed type</returns>
         private GenericInstanceType FindGenericType(Type type, params TypeReference[] genericArguments) 
             => FindMatchingType(type).MakeGenericInstanceType(genericArguments);
-
-        private GenericInstanceType FindGenericType(Type type, IEnumerable<TypeReference> genericArguments)
-            => FindGenericType(type, genericArguments.ToArray());
         
+        /// <summary>
+        /// Finds a type with an amount of generic arguments. If the amount is 0, returns the type as-is. Otherwise,
+        /// builds a GenericInstanceType with the arguments provided.
+        /// </summary>
+        /// <param name="type">The type to look for</param>
+        /// <param name="args">The parameters to build the type with</param>
+        /// <returns><c>type</c> if <c>args</c> is empty, a new GenericInstanceType otherwise</returns>
+        private TypeReference FindMaybeGeneric(Type type, TypeReference[] args)
+        {
+            if (args.Length == 0) return FindMatchingType(type);
+            return FindGenericType(type, args);
+        }
+
+        private TypeReference FindMaybeGeneric(Type type, List<TypeReference> args)
+            => FindMaybeGeneric(type, args.ToArray());
+
         /// <summary>
         /// Keep this here so Fody will work even if there's no code referencing Cecil
         /// </summary>

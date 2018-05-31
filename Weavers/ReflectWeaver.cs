@@ -68,6 +68,11 @@ namespace HSNXT.SimpleTamper
         /// Current field or property in the <see cref="TargetType"/> being processed (use only if relevant!)
         /// </summary>
         private MemberReference FieldOrProp;
+        
+        /// <summary>
+        /// Field holding value of <c>instance</c> parameter for instance members being called from instance members
+        /// </summary>
+        private FieldDefinition InstanceField;
 
         /// <summary>
         /// Type of the <see cref="FieldOrProp"/> currently being processed (once again, use only if relevant!)  
@@ -92,19 +97,20 @@ namespace HSNXT.SimpleTamper
         /// </summary>
         private MethodDefinition TargetMethod;
 
-        // fields from Util
+        // fields from Expressions.cs
         private MethodDefinition Getter_MemberInstance;
         private MethodDefinition Getter_MemberStatic;
+        
         private MethodDefinition Setter_MemberInstanceStruct;
         private MethodDefinition Setter_MemberInstanceClass;
         private MethodDefinition Setter_MemberStatic;
 
-        private MethodDefinition[] Caller_Instance;
-        private MethodDefinition[] Caller_Static;
-        private MethodDefinition[] Caller_InstanceVoid;
-        private MethodDefinition[] Caller_StaticVoid;
+        private readonly MethodDefinition[] Caller_Instance = new MethodDefinition[MaxParams+1];
+        private readonly MethodDefinition[] Caller_Static = new MethodDefinition[MaxParams+1];
+        private readonly MethodDefinition[] Caller_InstanceVoid = new MethodDefinition[MaxParams+1];
+        private readonly MethodDefinition[] Caller_StaticVoid = new MethodDefinition[MaxParams+1];
 
-        private Type[] AllFuncs =
+        private static readonly Type[] AllFuncs =
         {
             typeof(Func<>),
             typeof(Func<,>),
@@ -124,7 +130,7 @@ namespace HSNXT.SimpleTamper
             typeof(Func<,,,,,,,,,,,,,,,>),
             typeof(Func<,,,,,,,,,,,,,,,,>),
         };
-        private Type[] AllActions =
+        private static readonly Type[] AllActions =
         {
             typeof(Action),
             typeof(Action<>),
@@ -162,11 +168,14 @@ namespace HSNXT.SimpleTamper
             Setter_MemberInstanceClass = setters.GetMethod("MemberInstanceClass");
             Setter_MemberStatic = setters.GetMethod("MemberStatic");
 
-            var range = Enumerable.Range(0, MaxParams+1).ToArray();
-            Caller_Instance = range.Select(e => callers.GetMethod("Instance" + e)).ToArray();
-            Caller_Static = range.Select(e => callers.GetMethod("Static" + e)).ToArray();
-            Caller_InstanceVoid = range.Select(e => callers.GetMethod("InstanceVoid" + e)).ToArray();
-            Caller_StaticVoid = range.Select(e => callers.GetMethod("StaticVoid" + e)).ToArray();
+            // initialize all the different param counts
+            for (var i = 0; i <= MaxParams; i++)
+            {
+                Caller_Instance[i] = callers.GetMethod("Instance" + i);
+                Caller_Static[i] = callers.GetMethod("Static" + i);
+                Caller_InstanceVoid[i] = callers.GetMethod("InstanceVoid" + i);
+                Caller_StaticVoid[i] = callers.GetMethod("StaticVoid" + i);
+            }
 
             foreach (var type in Mod.GetTypes())
             {
@@ -195,34 +204,33 @@ namespace HSNXT.SimpleTamper
             if (Type.Fields.TryFirst(out var dummyField, e => e.IsStatic && e.Name == "_dummy"))
                 Type.Fields.Remove(dummyField);
 
-            ProcessStaticType();
-            ProcessInstanceType();
+            ExecuteType();
         }
 
         // ReSharper disable once ConvertIfStatementToReturnStatement
         /// <summary>
         /// Checks if a method matches 
         /// </summary>
-        /// <param name="e"></param>
+        /// <param name="targetMethod"></param>
         /// <returns></returns>
-        private bool IsMethodCandidate(MethodDefinition e)
+        private bool IsMethodCandidate(MethodDefinition targetMethod)
         {
-            if (e.Name != Method.Name)
+            if (targetMethod.Name != Method.Name)
                 return false;
             
-            var ourMethodParamTypes = Method.Parameters.Select(e1 => e1.ParameterType);
-            if (Method.IsStatic && !e.IsStatic)
-                ourMethodParamTypes = ourMethodParamTypes.Skip(1); // skip (instance) parameter
+            var selfParams = Method.Parameters.Select(e1 => e1.ParameterType);
+            if (Method.IsStatic && !targetMethod.IsStatic)
+                selfParams = selfParams.Skip(1); // skip (instance) parameter from method
             
 #if DEBUG_METHOD_CANDIDATE
             AssertParams(e, ourMethodParamTypes.ToArray());
             return true;
-            #else
-            return EqualParams(e, ourMethodParamTypes.ToArray());
+#else
+            return EqualParams(targetMethod, selfParams.ToArray());
 #endif
         }
 
-        private void ProcessStaticType()
+        private void ExecuteType()
         {
             StaticConstructor = Type.GetStaticConstructor();
             if (StaticConstructor == null)
@@ -237,10 +245,9 @@ namespace HSNXT.SimpleTamper
             {
                 // our static constructor isn't binding to any member in the target type, obviously
                 if (method == StaticConstructor) continue;
-                
-                // we only handle static properties or methods binding to static members or instance members.
-                // everything else is handled by ProcessInstanceType.
-                if (!method.IsStatic) continue;
+
+                if (!method.IsStatic && InstanceField == null)
+                    CreateInstanceField();
                 
                 Method = method;
                 
@@ -276,7 +283,7 @@ namespace HSNXT.SimpleTamper
                     }
                     else
                     {
-                        if (isPropertyMethod)
+                        if (Method.IsStatic && isPropertyMethod)
                             throw new Exception("A static property can't reference a non-static member");
                         
                         CreateFieldGetSet();
@@ -285,20 +292,20 @@ namespace HSNXT.SimpleTamper
                 else
                 {
                     if (isPropertyMethod)
-                        throw new Exception($"Not possible to make {methodName} introspect into a method");
+                        throw new Exception($"Not possible to make property {methodName} introspect into a method");
                     
                     if (TargetType.Methods.TryFirst(out TargetMethod, IsMethodCandidate))
                     {
-                        if (TargetMethod.IsStatic ? TargetMethod.Parameters.Count > MaxParams : TargetMethod.Parameters.Count > MaxParams+1)
+                        // if target method is static or source method pulls the instance param from field rather than
+                        // an argument, we check for MaxParams. if it's not static, or has an extra parameter for instance
+                        // we have to account for it.
+                        if (TargetMethod.IsStatic || !Method.IsStatic
+                            ? TargetMethod.Parameters.Count > MaxParams 
+                            : TargetMethod.Parameters.Count > MaxParams+1)
                             throw new Exception($"Method exceeds parameter limit of {MaxParams} not including instance: {TargetMethod}");
                         
-                        var signature =
-                            $"_call_method_{TargetMethod.Name}_{string.Join(",", TargetMethod.Parameters.Select(e => e.ParameterType.Name))}";
-                        
-                        // TODO this
-                        // TODO fix symlinks in HSNXT.ExpressionWeave.Fody
-                        // 
-                        CreateMethod(signature, TargetMethod.ReturnType.Match(typeof(void)), TargetMethod.IsStatic);
+                        // TODO fix symlinks in HSNXT.ExpressionWeave.Fody 
+                        CreateMethod(MakeSignature(TargetMethod), TargetMethod.ReturnType.Match(typeof(void)), TargetMethod.IsStatic);
 
                     }
                     else
@@ -311,63 +318,95 @@ namespace HSNXT.SimpleTamper
             CctorProc.Emit(OpCodes.Ret);
         }
 
+        private void CreateInstanceField()
+        {
+            InstanceField = new FieldDefinition("_hold_instance", FieldAttributes.Private, TargetType);
+            Type.Fields.Add(InstanceField);
+            
+            var constructor = Type.GetConstructors().Single(e => EqualParams(e, TargetType));
+            var inst = constructor.Body.Instructions;
+            var firstRet = inst.FirstOrDefault(e => e.OpCode == OpCodes.Ret);
+            if (firstRet != null) inst.Remove(firstRet);
+            
+            var cproc = constructor.Body.GetILProcessor();
+            cproc.Emit(OpCodes.Ldarg_0);
+            cproc.Emit(OpCodes.Ldarg_1);
+            cproc.Emit(OpCodes.Stfld, InstanceField);
+            cproc.Emit(OpCodes.Ret);
+        }
+
         private void CreateMethod(string signature, bool isVoid, bool isStatic)
         {
             var amtParams = TargetMethod.Parameters.Count;
             var realParams = isStatic ? amtParams : amtParams + 1;
 
             AssertParams(TargetMethod,
-                isStatic
+                isStatic || !Method.IsStatic
                     ? Method.Parameters.Select(e => e.ParameterType)
                     : Method.Parameters.Skip(1).Select(e => e.ParameterType));
 
-            // Func<...params, ReturnType>
-            var aparamsReturn = TargetMethod.Parameters.Select(e => e.ParameterType);
+            //    Func<...params, ReturnType> for static methods with return
+            // or Func<TargetType, ...params, ReturnType> for instance methods with return
+            // or Action<...params> for static methods with void return
+            // or Action<TargetType, ...params> for instance methods with void return
+            var generics = TargetMethod.Parameters.Select(e => e.ParameterType).ToList();
             if (!isVoid)
-                aparamsReturn = aparamsReturn.Concat(new[] {Method.ReturnType});
+                generics.Add(Method.ReturnType);
             if (!isStatic)
-                aparamsReturn = new[] { TargetType }.Concat(aparamsReturn);
-            var paramsReturn = aparamsReturn.ToArray();
-
-            // Callers.StaticN<TargetType, ...params, ReturnType>
-            var genericArguments = paramsReturn;
-            if (isStatic) // prefix <TargetType if we don't already have it
-                genericArguments = new[] {TargetType}.Concat(paramsReturn).ToArray();
+                generics.Insert(0, TargetType);
+            
+            // generic signature for Callers.XYZ<TargetType, ...params, ReturnType?>
+            // this must always contain TargetType as the first entry, even if the method being static means no instance
+            // is needed, so Callers knows where to get the method from
+            var constructorGenerics = new List<TypeReference>(generics);
+            if (isStatic)
+                constructorGenerics.Insert(0, TargetType);
             
             // add field
-            // Func<...params, ReturnType> _call_method_whatever
+            // for methods with return value, Func<...params, ReturnType> _call_method_signature
+            // for methods with void return, Action<...params> _call_method_signature
             var funcType = isVoid ? AllActions[realParams] : AllFuncs[realParams];
-            Console.WriteLine("A:"+funcType);
-            Console.WriteLine("B:"+string.Join(",", paramsReturn.Select(e => e.ToString())));
-            //Console.WriteLine("C:"+);
-            var genericFunc = FindMaybeGeneric(funcType, paramsReturn).Import(Mod);
+            var genericFunc = FindMaybeGeneric(funcType, generics).Import(Mod);
 
             var funcField = new FieldDefinition(signature, StaticField, genericFunc);
             Type.Fields.Add(funcField);
 
+            // initialize the field in the static constructor
+            //    _call_method_signature = Callers.InstanceN<TargetType, ...params, ReturnType>(targetMethodName);
+            // or _call_method_signature = Callers.StaticN<TargetType, ...params, ReturnType>(targetMethodName);
+            // or _call_method_signature = Callers.InstanceVoidN<TargetType, ...params>(targetMethodName);
+            // or _call_method_signature = Callers.StaticVoidN<TargetType, ...params>(targetMethodName);
             CctorProc.Emit(OpCodes.Ldstr, TargetMethod.Name);
-            var callerMethod = GetCaller(amtParams, isVoid, isStatic);
-            Console.WriteLine("C:"+callerMethod);
-            CctorProc.Emit(OpCodes.Call,
-                callerMethod.MakeGeneric(genericArguments).Import(Mod));
+            CctorProc.Emit(OpCodes.Call, 
+                GetCaller(amtParams, isVoid, isStatic).MakeGeneric(constructorGenerics).Import(Mod));
             CctorProc.Emit(OpCodes.Stsfld, funcField);
             
             // create invoke method
             // return _call_method_whatever.Invoke(...params);
             Proc.Emit(OpCodes.Ldsfld, funcField);
-            for (var i = 0; i < realParams; i++)
-                Proc.Emit(OpCodes.Ldarg_S, (byte) i);
+            PushArgs(realParams, isStatic); // push all the args including instance onto the stack
+            var invoke = genericFunc.GetMethod("Invoke");
             Proc.Emit(OpCodes.Callvirt,
                 realParams == 0
-                    ? genericFunc.GetMethod("Invoke").Import(Mod)
-                    : genericFunc.GetMethod("Invoke").MakeHostGeneric(paramsReturn).Import(Mod));
+                    ? invoke.Import(Mod)
+                    : invoke.MakeHostGeneric(generics).Import(Mod));
             Proc.Emit(OpCodes.Ret);
         }
 
-        private TypeReference FindMaybeGeneric(Type type, TypeReference[] @params)
+        private void PushArgs(int amt, bool isStatic)
         {
-            if (@params.Length == 0) return FindMatchingType(type);
-            return FindGenericType(type, @params);
+            var start = 0;
+            // if source method isn't static, remove instance param from count and push the instance from the field onto
+            // the stack
+            if (!Method.IsStatic && !isStatic)
+            {
+                Proc.Emit(OpCodes.Ldarg_0);
+                Proc.Emit(OpCodes.Ldfld, InstanceField);
+                start = 1;
+            }
+
+            for (var i = start; i < amt; i++)
+                Proc.Emit(OpCodes.Ldarg_S, (byte) i);
         }
 
         private MethodDefinition GetCaller(int amtParams, bool isVoid, bool isStatic) 
@@ -389,7 +428,7 @@ namespace HSNXT.SimpleTamper
                     Type.Fields.Add(funcField);
 
                     // add to static constructor
-                    // _call_get_fieldName = KSoft.Util.GenerateStaticMemberGetter<AC, float>("f");
+                    // _call_get_fieldName = Getters.MemberStatic<AC, float>("f");
                     CctorProc.Emit(OpCodes.Ldstr, FieldOrProp.Name);
                     CctorProc.Emit(OpCodes.Call,
                         Getter_MemberStatic.MakeGeneric(TargetType, FieldOrPropType).Import(Mod));
@@ -416,7 +455,7 @@ namespace HSNXT.SimpleTamper
                     Type.Fields.Add(funcField);
                     
                     // add to static constructor
-                    // _call_get_fieldName = KSoft.Util.GenerateStaticMemberSetter<AC, float>("f");
+                    // _call_get_fieldName = Setters.MemberStatic<AC, float>("f");
                     CctorProc.Emit(OpCodes.Ldstr, FieldOrProp.Name);
                     CctorProc.Emit(OpCodes.Call,
                         Setter_MemberStatic.MakeGeneric(TargetType, FieldOrPropType).Import(Mod));
@@ -438,74 +477,93 @@ namespace HSNXT.SimpleTamper
 
         private void CreateFieldGetSet()
         {
-            switch (Method.Parameters.Count)
+            var parametersCount = Method.Parameters.Count;
+            if (Method.IsStatic && parametersCount == 1 || !Method.IsStatic && parametersCount == 0)
             {
-                case 1: // getter
-                {
+                if (Method.IsStatic)
                     AssertParams(Method, TargetType);
+                else
+                    AssertParams(Method /* empty */);
 
-                    // add field
-                    // Func<TargetType, FieldType> _call_get_fieldName
-                    var genericFunc = FindGenericType(typeof(Func<,>), TargetType, FieldOrPropType).Import(Mod);
+                // add field
+                // Func<TargetType, FieldType> _call_get_fieldName
+                var genericFunc = FindGenericType(typeof(Func<,>), TargetType, FieldOrPropType).Import(Mod);
 
-                    var funcField = new FieldDefinition($"_call_get_{FieldOrProp.Name}", StaticField, genericFunc);
-                    Type.Fields.Add(funcField);
+                var funcField = new FieldDefinition($"_call_get_{FieldOrProp.Name}", StaticField, genericFunc);
+                Type.Fields.Add(funcField);
 
-                    // add to static constructor
-                    // _call_get_fieldName = KSoft.Util.GenerateMemberGetter<AC, float>("f");
-                    CctorProc.Emit(OpCodes.Ldstr, FieldOrProp.Name);
-                    CctorProc.Emit(OpCodes.Call,
-                        Getter_MemberInstance.MakeGeneric(TargetType, FieldOrPropType).Import(Mod));
-                    CctorProc.Emit(OpCodes.Stsfld, funcField);
+                // add to static constructor
+                // _call_get_fieldName = Getters.MemberInstance<AC, float>("f");
+                CctorProc.Emit(OpCodes.Ldstr, FieldOrProp.Name);
+                CctorProc.Emit(OpCodes.Call,
+                    Getter_MemberInstance.MakeGeneric(TargetType, FieldOrPropType).Import(Mod));
+                CctorProc.Emit(OpCodes.Stsfld, funcField);
 
-                    // create getter method    
-                    // return _call_get_fieldName.Invoke(args[0]);
-                    Proc.Emit(OpCodes.Ldsfld, funcField);
+                // create getter method    
+                // return _call_get_fieldName.Invoke(instance);
+                Proc.Emit(OpCodes.Ldsfld, funcField);
+                // push instance on the stack
+                if (Method.IsStatic)
                     Proc.Emit(OpCodes.Ldarg_0);
-                    Proc.Emit(OpCodes.Callvirt,
-                        genericFunc.GetMethod("Invoke").MakeHostGeneric(TargetType, FieldOrPropType).Import(Mod));
-                    Proc.Emit(OpCodes.Ret);
-                    break;
-                }
-                case 2: // setter
+                else
                 {
-                    AssertParams(Method, TargetType, FieldOrPropType);
-                    AssertIsPropWriteable(FieldOrProp);
-
-                    // add field
-                    // Action<TargetType, FieldType> _call_set_fieldName
-                    var genericFunc = FindGenericType(
-                        TargetType.IsValueType ? typeof(StructSetter<,>) : typeof(Action<,>)
-                        , TargetType, FieldOrPropType).Import(Mod);
-
-                    var funcField = new FieldDefinition($"_call_set_{FieldOrProp.Name}", StaticField, genericFunc);
-                    Type.Fields.Add(funcField);
-                    
-                    // add to static constructor
-                    // _call_get_fieldName = KSoft.Util.GenerateStaticMemberSetter<AC, float>("f");
-                    CctorProc.Emit(OpCodes.Ldstr, FieldOrProp.Name);
-                    CctorProc.Emit(OpCodes.Call,
-                        (TargetType.IsValueType ? Setter_MemberInstanceStruct : Setter_MemberInstanceClass)
-                            .MakeGeneric(TargetType, FieldOrPropType).Import(Mod));
-                    CctorProc.Emit(OpCodes.Stsfld, funcField);
-
-                    // create getter method
-                    // return _call_set_fieldName.Invoke(args[0], args[1]);
-                    Proc.Emit(OpCodes.Ldsfld, funcField);
                     Proc.Emit(OpCodes.Ldarg_0);
-                    Proc.Emit(OpCodes.Ldarg_1);
-                    Proc.Emit(OpCodes.Callvirt,
-                        genericFunc.GetMethod("Invoke").MakeHostGeneric(TargetType, FieldOrPropType).Import(Mod));
-                    Proc.Emit(OpCodes.Ret);
-                    break;
+                    Proc.Emit(OpCodes.Ldfld, InstanceField);
                 }
-                default:
-                    throw new Exception($"Wrong params count for static {Method} {Method.Parameters.Count}, should be 0 or 1");
-            }
-        }
 
-        private void ProcessInstanceType()
-        {
+                Proc.Emit(OpCodes.Callvirt,
+                    genericFunc.GetMethod("Invoke").MakeHostGeneric(TargetType, FieldOrPropType).Import(Mod));
+                Proc.Emit(OpCodes.Ret);
+            }
+            else if (Method.IsStatic && parametersCount == 2 || !Method.IsStatic && parametersCount == 1)
+            {
+                if (Method.IsStatic)
+                    AssertParams(Method, TargetType, FieldOrPropType);
+                else
+                    AssertParams(Method, FieldOrPropType);
+                AssertIsPropWriteable(FieldOrProp);
+
+                // add field
+                // Action<TargetType, FieldType> _call_set_fieldName
+                var genericFunc = FindGenericType(
+                    TargetType.IsValueType ? typeof(StructSetter<,>) : typeof(Action<,>)
+                    , TargetType, FieldOrPropType).Import(Mod);
+
+                var funcField = new FieldDefinition($"_call_set_{FieldOrProp.Name}", StaticField, genericFunc);
+                Type.Fields.Add(funcField);
+
+                // add to static constructor
+                // _call_get_fieldName = Setters.MemeberInstanceStruct|MemberInstanceClass<AC, float>("f");
+                CctorProc.Emit(OpCodes.Ldstr, FieldOrProp.Name);
+                CctorProc.Emit(OpCodes.Call,
+                    (TargetType.IsValueType ? Setter_MemberInstanceStruct : Setter_MemberInstanceClass)
+                    .MakeGeneric(TargetType, FieldOrPropType).Import(Mod));
+                CctorProc.Emit(OpCodes.Stsfld, funcField);
+
+                // create getter method
+                // return _call_set_fieldName.Invoke(instance, args[0/1]);
+                Proc.Emit(OpCodes.Ldsfld, funcField);
+                // push instance and value on the stack
+                if (Method.IsStatic)
+                {
+                    Proc.Emit(OpCodes.Ldarg_0);
+                }
+                else
+                {
+                    Proc.Emit(OpCodes.Ldarg_0);
+                    Proc.Emit(OpCodes.Ldfld, InstanceField);
+                }
+                Proc.Emit(OpCodes.Ldarg_1);
+
+                Proc.Emit(OpCodes.Callvirt,
+                    genericFunc.GetMethod("Invoke").MakeHostGeneric(TargetType, FieldOrPropType).Import(Mod));
+                Proc.Emit(OpCodes.Ret);
+            }
+            else
+            {
+                throw new Exception(
+                    $"Wrong params count for static {Method} {parametersCount}, should be 1 or 2");
+            }
         }
 
         public override IEnumerable<string> GetAssembliesForScanning()
