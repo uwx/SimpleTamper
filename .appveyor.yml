@@ -1,0 +1,35 @@
+version: 1.0.{build}
+image: Visual Studio 2017
+configuration: Release
+platform: Any CPU
+install:
+- cmd: appveyor downloadfile https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
+before_build:
+- ps: nuget restore
+build:
+  verbosity: minimal
+artifacts:
+- path: nugets\**\*.nupkg
+
+# Automatically register private account and/or project AppVeyor NuGet feeds.
+nuget:
+  account_feed: false
+  project_feed: false
+  disable_publish_on_pr: true     # disable publishing of .nupkg artifacts to account/project feeds for pull request builds
+
+environment:
+  access_token:
+    secure: ZCGkDJawCLuRgzYTYraor3+u8xB5hjlMC2RhZZYWKkAVWbJ8DBI/ws7qqpZ2c2L1
+
+deploy:
+  - provider: NuGet
+    skip_symbols: false
+    api_key:
+      secure: ZkuAOJwTjYBiEAHrTHkVDYaNRBaWDDmvpkUVN+9PnsHWQnfDDdDWWAMPltRlYNYn
+      
+notifications:
+  - provider: Slack
+    on_build_success: true
+    on_build_failure: true
+    incoming_webhook:
+      secure: /tQzfO0uCSjCMZF2eqIdIGAxeA/Zyn2eKDJKfcnvwV7PsWf0sLZolUFnbnWva3KWtNuYgOXz30QpuRl/fcza4Kp7Ymg7COchmmFXpAPu+ZW/yuY4SiEEgTIRmpLZZFLVlFPOlb+9+JjNvk2Ck6LnWD799g3ErcK7arpJF7O0CrK3Bs/Ib3Qeyigdu7g71Lva
