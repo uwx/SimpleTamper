@@ -146,6 +146,6 @@ Methods with up to 15 arguments are supported.
 
 ## Future ideas
 * Support generic types and methods (I haven't had time to do this yet)
-* Avoid reflection entirely and use InternalsVisibleToAttribute (I had no idea this compiler hack existed when I first created SimpleTamper)
+* Avoid reflection entirely and use IgnoresAccessChecksToAttribute (I had no idea this compiler hack existed when I first created SimpleTamper)
 * Clever use of inheritance like [MonoMod](https://github.com/0x0ade/MonoMod)
 * Perhaps some neat way of generating introspection classes? While scouring the interwebs, I found [this](https://github.com/aelij/IgnoresAccessChecksToGenerator), which uses MsBuild tasks and is basically much sleeker than SimpleTamper, but hasn't been updated in a while. Maybe it still works?
